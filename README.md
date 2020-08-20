@@ -20,3 +20,7 @@ opaque green_wool 82 105 29
  
 ## Using Generated Files
 Once the program has finished, it will have created a folder called "region" where there will now be a set of .mca files. Put these files into a world's "region" folder to see them in-game. 
+
+## Gallery
+![Screenshot 1](https://i.imgur.com/ib7px0z.png)
+![Screenshot 2](https://i.imgur.com/mXg5zNB.png)
