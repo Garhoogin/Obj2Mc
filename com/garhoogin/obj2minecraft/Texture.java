@@ -90,9 +90,10 @@ public class Texture {
     /**
      * Sample a 3x3 area of the texture at the given UV coordinates.
      * 
-     * @param u the U coordinate
-     * @param v the V coordinate
-     * @return  the average color of the 3x3 area around the UV coordinate
+     * @param u    the U coordinate
+     * @param v    the V coordinate
+     * @return     the average color of the 3x3 area around the UV coordinate
+     * @deprecated don't use this please
      */
     public Color sample(float u, float v){
         int coordX = (int) (u * width);
@@ -121,6 +122,31 @@ public class Texture {
      */
     public static Texture readTexture(String path, String name) throws IOException{
         return new Texture(ImageIO.read(new File(path)), name);
+    }
+    
+    
+    /**
+     * Sample a texture by a box given by its minimum and maximum points.
+     * 
+     * @param uvMin the box's minimum point
+     * @param uvMax the box's maximum point
+     * @return      the average color within the input box
+     * @since       1.0.1.0
+     */
+    public Color sample(Coord uvMin, Coord uvMax){
+        int xMin = (int) (uvMin.x * width);
+        int xMax = (int) (uvMax.x * width) + 1;
+        int yMin = (int) (uvMin.y * height);
+        int yMax = (int) (uvMax.y * height) + 1;
+        int texelsX = xMax - xMin;
+        int texelsY = yMax - yMin;
+        Color[] colors = new Color[texelsX * texelsY];
+        for(int x = xMin; x < xMax; x++){
+            for(int y = yMin; y < yMax; y++){
+                colors[(y - yMin) * texelsX + x - xMin] = sampleOne(x, y);
+            }
+        }
+        return avg(colors);
     }
     
 }

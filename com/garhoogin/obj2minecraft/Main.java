@@ -86,10 +86,9 @@ public class Main {
      */
     public static Color sampleColor(Triangle triangle, Map<String, Texture> textures, Vec3 position, Vec3 boxSize){
         //make a list of colors.
-        List<Color> colors = new ArrayList<>();
+        List<Color> colors = new ArrayList<>(28);
         Vec3 base = position.subtract(boxSize.multiply(0.25f));
         float halfSize = boxSize.x * 0.5f;
-        float thirdSize = boxSize.x * 0.6666667f;
         float quarterSize = 0.5f * halfSize;
         Texture texture = textures.get(triangle.texture);
         
@@ -103,6 +102,8 @@ public class Main {
             colors.add(c);
         }
         
+        Coord uvMin = null, uvMax = null;
+        
         for(int x = 0; x < 3; x++){
             for(int y = 0; y < 3; y++){
                 for(int z = 0; z < 3; z++){
@@ -112,23 +113,26 @@ public class Main {
                     Vec3 onTri = triangle.perpendicular(newPosition);
                     Vec3 bary = triangle.getBarycentric(onTri);
                     Coord uv = triangle.getTexCoord(bary);
-                    Color c = texture.sample(uv.x, uv.y);
-                    colors.add(c);
+                    if(uvMin == null || uvMax == null){
+                        uvMin = uv;
+                        uvMax = uv;
+                    } else {
+                        uvMin = uvMin.min(uv);
+                        uvMax = uvMax.max(uv);
+                    }
                     nFilled++;
                 }
             }
         }
-        //boolean overlap = tricube_overlap(triangle, position, boxSize.x);
-        //if(overlap) nFilled++;
         
         if(nFilled == 0){
-            //System.out.println("???");
-            //System.out.println("\tBox Size: " + boxSize + "\n\tPosition: " + position + "\n\tTriangle: " + triangle
-            //    + "\n\tHalf box size: " + new Vec3(halfSize, halfSize, halfSize));
-            //System.exit(0);
+            //no sub-boxes collided for whatever reason. Just return color 0.
+            return colors.get(0);
         }
         
-        return Texture.avg(colors.toArray(new Color[0]));
+        //now, we imagine a box made by uvMin and uvMax. Sample all pixels
+        //in this box.
+        return texture.sample(uvMin, uvMax);
     }
     
     
