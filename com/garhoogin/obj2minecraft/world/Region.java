@@ -1,5 +1,6 @@
 package com.garhoogin.obj2minecraft.world;
 
+import com.garhoogin.obj2minecraft.ConverterGUI;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -17,18 +18,22 @@ public class Region {
     /**
      * Write out the blocks in a given region by its region coordinates. Blocks
      * consumed by this region are removed from the blocks list. Files are
-     * written to region/r.[x].[z].mca.
+     * written to {@code outDirectory}/region/r.[x].[z].mca.
      * 
-     * @param regionX      the X coordinate of this region in region coordinates
-     * @param regionZ      the Z coordinate of this region in region coordinates
-     * @param blocks       the input list of blocks
+     * @param regionX        the X coordinate of this region in region coordinates
+     * @param regionZ        the Z coordinate of this region in region coordinates
+     * @param blocks         the input list of blocks
+     * @param outDirectory   the directory to write region files to
+     * @param progressWindow the progress window
      * @throws IOException if a region file could not be written
      */
-    public static void write(int regionX, int regionZ, List<Block> blocks) throws IOException{
+    public static void write(int regionX, int regionZ, List<Block> blocks, String outDirectory, ConverterGUI.ProgressWindow progressWindow) throws IOException{
+        progressWindow.chunksProgressBar.setValue(0);
         Chunk chunks[][] = new Chunk[32][32]; //[x][z]
         for(int x = 0; x < 32; x++){
             for(int z = 0; z < 32; z++){
                 chunks[x][z] = new Chunk((regionX * 32 + x) * 16, (regionZ * 32 + z) * 16, blocks);
+                progressWindow.chunksProgressBar.setValue(progressWindow.chunksProgressBar.getValue() + 1);
             }
         }
         NBTTagCompound region = new NBTTagCompound();
@@ -58,23 +63,22 @@ public class Region {
                     int nSectors = b.length / 4096;
                     bHeader.write(nSectors & 0xFF);
                     
-                    System.out.println("Writing chunk (" + x + ", " + z + ")" + " at " + dataOffset + " (" + sectors + " sector) at header offset " + headerOffset);
                     dataOffset += b.length;
                 } else {
-                    System.out.println("Writing empty chunk (" + x + ", " + z + ") at header offset " + headerOffset);
                     bHeader.write(0);
                     bHeader.write(0);
                     bHeader.write(0);
                     bHeader.write(0);
                 }
                 headerOffset += 4;
+                progressWindow.chunksProgressBar.setValue(progressWindow.chunksProgressBar.getValue() + 1);
             }
         }
         byte[] padding = new byte[4096];
         bHeader.write(padding);
         bHeader.write(baos.toByteArray());
         byte[] bytes = bHeader.toByteArray();
-        File f = new File("region/r." + regionX + "." + regionZ + ".mca");
+        File f = new File(outDirectory + "/region/r." + regionX + "." + regionZ + ".mca");
         OutputStream out = new FileOutputStream(f);
         out.write(bytes);
         out.close();

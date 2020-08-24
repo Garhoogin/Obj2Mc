@@ -1,10 +1,12 @@
 package com.garhoogin.obj2minecraft.world;
 
+import com.garhoogin.obj2minecraft.ConverterGUI;
 import com.garhoogin.obj2minecraft.MaterialSet;
 import java.awt.Color;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.JLabel;
 
 /**
  * The {@code World} class contains a set of blocks, and the minimum and maximum
@@ -68,12 +70,16 @@ public class World {
     /**
      * Save this {@code World}.
      * 
-     * @throws IOException if any files failed to be written
+     * @param progressWindow the progress window
+     * @param outDirectory   the output directory
+     * @throws IOException   if any files failed to be written
      */
-    public void save() throws IOException{
+    public void save(ConverterGUI.ProgressWindow progressWindow, String outDirectory) throws IOException{
         //subtract min from all coordinates
-        System.out.println("World blocks: " + blocks.size());
         int n = 0;
+        ((JLabel) progressWindow.frame.getContentPane().getComponent(0)).setText("Blocks:");
+        progressWindow.layersProgressBar.setValue(0);
+        progressWindow.layersProgressBar.setMaximum(blocks.size());
         for(Block b : blocks){
             if(b == null){
                 System.err.println("Null block " + n + "!");
@@ -84,7 +90,10 @@ public class World {
             b.y -= minY;
             b.z -= minZ;
             n++;
+            //we don't need to update the progressbar for every block
+            if((n & 0xFF) == 0) progressWindow.layersProgressBar.setValue(n);
         }
+        progressWindow.layersProgressBar.setValue(n);
         //create regions.
         int sizeX = maxX - minX;
         int sizeY = maxY - minY;
@@ -96,11 +105,16 @@ public class World {
         int regionsX = (chunksX + 31) / 32;
         int regionsZ = (chunksZ + 31) / 32;
         
+        progressWindow.regionsProgressBar.setMaximum(regionsX * regionsZ);
+        progressWindow.chunksProgressBar.setMaximum(32 * 32 * 2); //32x32, 2 stages
+        
         System.out.println("Needed regions: " + regionsX + "x" + regionsZ);
         for(int x = 0; x < regionsX; x++){
             for(int z = 0; z < regionsZ; z++){
                 System.out.println("Generating region (" + x + ", " + z + ")");
-                Region.write(x, z, blocks);
+                Region.write(x, z, blocks, outDirectory, progressWindow);
+                progressWindow.regionsProgressBar.setValue(
+                    progressWindow.regionsProgressBar.getValue() + 1);
             }
         }
     }

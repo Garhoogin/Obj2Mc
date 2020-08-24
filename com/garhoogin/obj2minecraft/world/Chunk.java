@@ -36,7 +36,6 @@ public class Chunk {
      * @param blocks the input list of blocks
      */
     public Chunk(int blockX, int blockZ, List<Block> blocks){
-        System.out.println("Chunk at " + blockX + ", " + blockZ);
         this.blocks = new ArrayList<>();
         this.xInRegion = (blockX / 16) % 32;
         this.zInRegion = (blockZ / 16) % 32;
