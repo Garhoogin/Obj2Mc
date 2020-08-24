@@ -141,111 +141,12 @@ public class Main {
      */
     public static final int MAX_THREADS = 16;
     
+    
+    
     public static void main(String[] args) throws IOException{
-        Scanner sc = new Scanner(System.in);
-        String path;
-        if(args.length > 0) path = args[0];
-        else {
-            System.out.print("Input OBJ: ");
-            path = sc.nextLine();
-        }
-        if(!new File(path).exists()){
-            System.err.println("Path not found.");
-            System.exit(1);
-        }
-        int setHeight = 126;
-        System.out.print("Height: ");
-        setHeight = Integer.parseInt(sc.nextLine());
-
         
-        Map<String, Texture> textures = new HashMap<>();
-        Triangle[] t = ObjReader.read(path, textures);
+        ConverterGUI gui = new ConverterGUI();
         
-        if(args.length > 1){
-            List<Triangle> triangleList = new ArrayList<>(t.length);
-            triangleList.addAll(Arrays.asList(t));
-            
-            int nExtraFiles = args.length - 2;
-            for(int i = 2; i < args.length; i++){
-                path = args[i];
-                File f = new File(path);
-                if(!f.exists()){
-                    System.err.println("File not found: " + path);
-                    System.exit(1);
-                }
-                Triangle[] arr = ObjReader.read(path, textures);
-                System.out.println("Adding " + arr.length + " triangles.");
-                triangleList.addAll(Arrays.asList(arr));
-            }
-            t = triangleList.toArray(new Triangle[0]);
-        }
-        
-        System.out.print("Material data (leave blank to skip): ");
-        String materialPath = sc.nextLine();
-        
-        MaterialSet materialSet;
-        
-        //read material data
-        if(materialPath.trim().length() > 0){
-            materialSet = MaterialSet.readMaterialSet(materialPath);
-        } else {
-            materialSet = new MaterialSet();
-        }
-        
-        Vec3 size = Triangle.getMax(t).subtract(Triangle.getMin(t));
-        int cubesY = setHeight;
-        float width = size.x;
-        float height = size.y;
-        float cubeSize = height / ((float) (cubesY - 1));
-        int cubesX = (int) Math.ceil(size.x / cubeSize);
-        int cubesZ = (int) Math.ceil(size.z / cubeSize);
-        
-        System.out.println("size: " + size);
-        System.out.println("Min: " + Triangle.getMin(t));
-        System.out.println("Max: " + Triangle.getMax(t));
-        System.out.println("Dimensions: " + cubesX + ", " + cubesY + ", " + cubesZ);
-        System.out.println("Triangles: " + t.length);
-        
-        Vec3 min = Triangle.getMin(t);
-        cubesX += 2; cubesZ += 2;
-        World world = new World();
-        
-        int nThreads = (cubesY + 15) / 16;
-        if(nThreads > MAX_THREADS) nThreads = MAX_THREADS;
-        
-        int layersToThread = cubesY;
-        //round up to a multiple of nThreads
-        if((layersToThread % nThreads) != 0){
-            layersToThread += nThreads - (layersToThread % nThreads);
-        }
-        //dish out threads
-        
-        List<Object> completeLayers = new ArrayList<>();
-        
-        int layersPerThread = layersToThread / nThreads;
-        List<Thread> threads = new ArrayList<>();
-        for(int i = 0; i < nThreads; i++){
-            LayererThread t1 = new LayererThread(t, world, materialSet, 
-                    textures, cubeSize, min, layersPerThread * i, cubesX, 
-                    cubesY, cubesZ, layersPerThread, completeLayers);
-            Thread th1 = t1.begin();
-            threads.add(th1);
-        }
-        
-        for(Thread th : threads){
-            try{
-                th.join();
-            } catch(InterruptedException ex){
-                ex.printStackTrace();
-            }
-        }
-        
-        System.out.println("Begin generating world");
-        File region = new File("region");
-        if(region.exists()) region.delete();
-        region.mkdir();
-        world.save();
-        System.out.println("Done.");
     }
     
 }
@@ -265,7 +166,7 @@ class LayererThread implements Runnable{
     public boolean done;
     private final MaterialSet materialSet;
     private Thread thread;
-    private final List<Object> completeLayers;
+    private final ConverterGUI.ProgressWindow progressWindow;
     
     
     /**
@@ -284,7 +185,7 @@ class LayererThread implements Runnable{
      * @param nLayers        the number of layers to make
      * @param completeLayers a list for keeping track of complete layers
      */
-    public LayererThread(Triangle[] triangles, World world, MaterialSet materialSet, Map<String, Texture> textures, float cubeSize, Vec3 min, int minY, int cubesX, int cubesY, int cubesZ, int nLayers, List<Object> completeLayers){
+    public LayererThread(Triangle[] triangles, World world, MaterialSet materialSet, Map<String, Texture> textures, float cubeSize, Vec3 min, int minY, int cubesX, int cubesY, int cubesZ, int nLayers, ConverterGUI.ProgressWindow completeLayers){
         if(minY == 0){
             minY = -1;
             nLayers++;
@@ -300,7 +201,8 @@ class LayererThread implements Runnable{
         this.min = min;
         this.textures = textures;
         this.materialSet = materialSet;
-        this.completeLayers = completeLayers;
+        this.progressWindow = completeLayers;
+        this.progressWindow.layersProgressBar.setMaximum(cubesY);
         //determine which triangles can actually be seen from this section
         List<Triangle> triangleList = new ArrayList<>();
         float minModelY = minY * cubeSize + min.y + 0.5f * cubeSize;
@@ -321,9 +223,11 @@ class LayererThread implements Runnable{
         int nDone = 0;
         System.out.println("Enter new thread. Queued layers: " + nLayers + " from y=" + minY + ". Triangles: " + t.length);
         for(int y = minY; y <= cubesY; y++){
-            synchronized(completeLayers){
-                System.out.println("Generating layer " + completeLayers.size() + " / " + cubesY);
-                completeLayers.add(null);
+            synchronized(progressWindow){
+                //System.out.println("Generating layer " + completeLayers.size() + " / " + cubesY);
+                //completeLayers.add(null);
+                int layers = progressWindow.layersProgressBar.getValue();
+                progressWindow.layersProgressBar.setValue(layers + 1);
             }
             
             for(int x = 0; x < cubesX; x++){
